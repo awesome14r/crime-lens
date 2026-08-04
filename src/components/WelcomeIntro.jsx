@@ -1,0 +1,17 @@
+import React, { useEffect, useRef, useState } from 'react'
+import { useCase } from '../context/CaseContext'
+import { themeClasses } from '../theme'
+
+export default function WelcomeIntro({ onComplete }) {
+  const canvasRef = useRef(null); const pointer = useRef({ x: -999, y: -999 }); const { agentName, theme } = useCase(); const t = themeClasses(theme); const [phase, setPhase] = useState(0); const [skipVisible, setSkipVisible] = useState(false)
+  useEffect(() => {
+    const canvas = canvasRef.current; const ctx = canvas.getContext('2d'); let frame; let active = true
+    const nodes = Array.from({ length: 56 }, () => ({ x: Math.random(), y: Math.random(), vx: (Math.random() - .5) * .00028, vy: (Math.random() - .5) * .00028, size: 1 + Math.random() * 1.5 }))
+    const resize = () => { canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio; canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0) }
+    resize(); addEventListener('resize', resize)
+    const draw = () => { if (!active) return; const w = innerWidth, h = innerHeight; ctx.clearRect(0, 0, w, h); const glow = ctx.createRadialGradient(pointer.current.x, pointer.current.y, 0, pointer.current.x, pointer.current.y, 260); glow.addColorStop(0, 'rgba(63,208,255,.18)'); glow.addColorStop(1, 'rgba(63,208,255,0)'); ctx.fillStyle = glow; ctx.fillRect(0,0,w,h); nodes.forEach(n => { const dx = n.x*w-pointer.current.x, dy=n.y*h-pointer.current.y, d=Math.hypot(dx,dy); if(d<180){n.vx+=dx/d*.000001;n.vy+=dy/d*.000001} n.x=(n.x+n.vx+1)%1;n.y=(n.y+n.vy+1)%1 }); for(let i=0;i<nodes.length;i++){for(let j=i+1;j<nodes.length;j++){const a=nodes[i],b=nodes[j],dx=(a.x-b.x)*w,dy=(a.y-b.y)*h,d=Math.hypot(dx,dy);if(d<145){ctx.strokeStyle=`rgba(63,208,255,${.20*(1-d/145)})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(a.x*w,a.y*h);ctx.lineTo(b.x*w,b.y*h);ctx.stroke()}}} nodes.forEach(n=>{const near=Math.hypot(n.x*w-pointer.current.x,n.y*h-pointer.current.y)<160;ctx.fillStyle=near?'#f5a623':'#3fd0ff';ctx.globalAlpha=near?.9:.55;ctx.beginPath();ctx.arc(n.x*w,n.y*h,n.size,0,Math.PI*2);ctx.fill()});ctx.globalAlpha=1;frame=requestAnimationFrame(draw) }
+    draw(); const swap=setTimeout(()=>setPhase(1),1800), skip=setTimeout(()=>setSkipVisible(true),900), done=setTimeout(onComplete,4400); const visibility=()=>{active=!document.hidden;if(active)draw()}; document.addEventListener('visibilitychange',visibility)
+    return()=>{cancelAnimationFrame(frame);clearTimeout(swap);clearTimeout(skip);clearTimeout(done);removeEventListener('resize',resize);document.removeEventListener('visibilitychange',visibility)}
+  },[onComplete])
+  return <div onMouseMove={e=>{pointer.current={x:e.clientX,y:e.clientY}}} className={`relative h-screen overflow-hidden ${t.appBg} ${t.appBgImage} flex items-center justify-center`}><canvas ref={canvasRef} className="absolute inset-0"/><div className="relative z-10 text-center"><h1 className="font-display text-5xl font-bold tracking-tight text-slate-100 md:text-7xl">{phase ? 'CRIME LENS' : `Welcome, ${agentName}`}</h1>{phase===1&&<p className="mt-3 font-mono text-sm tracking-wide text-signal-cyan animate-pulseSlow">Where evidence meets intelligence</p>}</div>{skipVisible&&<button onClick={onComplete} className="absolute bottom-6 right-6 text-xs font-mono text-slate-400 hover:text-signal-cyan">Skip</button>}</div>
+}
